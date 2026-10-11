@@ -11,20 +11,30 @@
 - [x] Стадия 3 (хранилище): 25 фото сжаты (JPEG 1440px) и загружены в Supabase Storage (публичный бакет), `npm run cli -- upload-photos`
 - [x] Стадия 6 (частично): публикация в Threads работает. Тестовый пост id 7 опубликован: https://www.threads.com/@danya_in.beta/post/DeUhqstjSje
 
+## Облако и расписание (сделано 2026-10-11)
+- [x] Состояние в Supabase (таблицы tw_*, supabase/schema.sql); локальный SQLite мигрирован и удалён из кода
+- [x] Планировщик src/scheduler.ts: слоты дня (по одному в окно, случайное время, NY), grace 3 ч, пауза через tw_state.paused
+- [x] Токен Threads хранится в tw_state и автопродляется (<20 дней до конца)
+- [x] GitHub: приватный репо https://github.com/frolow-p-n/threads-writer, workflow .github/workflows/tick.yml (каждые 30 мин + ручной запуск с dry), секреты записаны
+- [x] Режим: полностью автономный (без Telegram-одобрения; выбор пользователя)
+
 ## Осталось
-- [ ] Стадия 6: расписание. 2 поста/день, окна 12:00-13:30 и 19:00-23:00 America/New_York, jitter 25 мин; планировщик на GitHub Actions cron + автопродление токена (каждые 60 дней, refresh после 24 ч жизни)
-- [ ] Режим одобрения через Telegram (создать бота в @BotFather). Предложено: 1–2 недели с одобрением, потом автономно. Ждёт выбора пользователя
-- [ ] Перенос БД с локального SQLite (data/threads.db) в облако (Supabase Postgres), иначе GitHub Actions не сможет хранить состояние
+- [ ] Следить за первыми автопубликациями (слоты 2026-10-11: ~12:21 и ~19:50 NY)
 - [ ] Стадия 7: ответы на комментарии (классификатор + критик)
 - [ ] Стадии 8–10: Collector метрик, Analyst, автоподстройка весов
-- [ ] Остальные ~475 фото загрузить (сейчас в photos/ 25 шт.)
+- [ ] Остальные ~475 фото: положить в photos/ и `npm run cli -- upload-photos` (в облаке уже 25)
 - [ ] Включить метку AI info в профиле (рекомендовано)
+- [ ] Опционально: веб-панель (Vercel), Telegram-уведомления
 
 ## Команды
-- `npm run dry-run -- --n 3 [--type photo]`: сгенерировать посты, ничего не публикуя
-- `npm run cli -- upload-photos`: сжать и загрузить новые фото в Supabase
-- `npm run cli -- threads-check`: проверить токен Threads
-- `npm run cli -- publish --id N`: опубликовать одобренный пост (id из таблицы posts)
+- `npm run dry-run -- --n 3`: черновики (draft), ничего не публикуя, фото не расходуются
+- `npm run cli -- upload-photos`: сжать и загрузить новые фото
+- `npm run cli -- threads-check`: проверить токен
+- `npm run cli -- publish --id N`: опубликовать draft/approved пост
+- `npm run cli -- tick [--dry]`: один тик планировщика (то, что делает GitHub Actions)
+- `npm run cli -- pause --on 1|0`: пауза/снятие паузы (хранится в облаке, действует и для GitHub)
+- `npm run cli -- plan-day`: пример слотов дня
+- GitHub: `gh workflow run tick.yml -f dry=true` для холостого прогона
 
 ## Важно помнить
 - `.env` (не в git): OPENAI_API_KEY, THREADS_ACCESS_TOKEN, THREADS_USER_ID, THREADS_APP_SECRET, THREADS_TOKEN_EXPIRES, SUPABASE_URL (корень, БЕЗ /rest/v1), SUPABASE_SERVICE_ROLE_KEY, SUPABASE_BUCKET
@@ -35,4 +45,4 @@
 - Персона: при искреннем вопросе «ты ИИ?» не утверждает, что она человек (решение сохранено сознательно)
 
 ## Следующий шаг
-Спросить пользователя про режим запуска (Telegram-одобрение или автономно), затем: Telegram-бот -> расписание -> перенос БД в облако -> GitHub Actions.
+Посмотреть результат первых автопубликаций, затем стадия 7 (ответы на комментарии).
