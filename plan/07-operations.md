@@ -81,3 +81,9 @@ OpenAI: около $0.01 за пост (3-4 вызова), около $0.5 в м
 ## Защита от сбоев публикации
 Перед генерацией поста агент проверяет, что Threads API отвечает. Если нет: ничего не тратится, одно уведомление в Telegram (не чаще раза в 6 часов). Если пост уже сгенерирован, а публикация упала, на следующем запуске публикуется он же. Фото помечается использованным только после успешной публикации.
 Ошибка `API access blocked (code 200)` у Threads уже случалась 2026-10-11 после проверки аккаунта при входе в Meta и прошла сама через несколько часов. Нужно: проверить Required actions и Alert Inbox в консоли разработчика, подтвердить проверку аккаунта, подождать; на время сбоя `pause --on 1`.
+
+## Надёжный запуск: Supabase cron
+Встроенный cron GitHub срабатывал раз в несколько часов, поэтому добавлен триггер в Supabase (`supabase/migrations/003_cron.sql`): `pg_cron` каждые 15 минут через `pg_net` вызывает workflow_dispatch в GitHub. Токен GitHub (fine-grained, только репозиторий threads-writer, право Actions: Read and write, срок 1 год) лежит в Supabase Vault под именем `github_dispatch_token`. Параллельные запуски исключены (`concurrency` в workflow), слоты идемпотентны.
+- Проверить: `select status_code, created from net._http_response order by created desc limit 5;` (204 = запуск принят) и `select * from cron.job_run_details order by start_time desc limit 5;`
+- Остановить: `select cron.unschedule('tw-dispatch');`
+- Когда токен истечёт (через год): создать новый и обновить секрет: `select vault.update_secret((select id from vault.secrets where name='github_dispatch_token'), 'НОВЫЙ_ТОКЕН');`
