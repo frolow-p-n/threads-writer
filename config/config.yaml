@@ -1,0 +1,39 @@
+# Расписание (используется со стадии 6)
+posts_per_day: 2
+windows: ["12:00-13:30", "19:00-23:00"]   # по времени Нью-Йорка
+timezone: America/New_York
+jitter_minutes: 25
+
+# Контент
+photo_post_ratio: 1.0      # доля постов с фото (1.0 = всегда фото + история)
+min_post_chars: 330        # истории должны быть полноценными
+max_post_chars: 500        # лимит Threads
+critic_min_score: 7
+max_revisions: 2
+memory_size: 30            # сколько прошлых постов подмешивать в промпт
+
+models:
+  vision: gpt-4o-mini
+  writer: gpt-4.1-mini
+  critic: gpt-4.1-mini
+
+# Жанры историй к фото: вес = относительная вероятность
+genres:
+  - { id: sci-fi,    name: sci-fi,                  weight: 1 }
+  - { id: funny,     name: funny story,             weight: 1 }
+  - { id: creepy,    name: creepy story,            weight: 1 }
+  - { id: detective, name: mini detective story,    weight: 1 }
+  - { id: fairy,     name: fairy tale,              weight: 1 }
+  - { id: nostalgia, name: nostalgic memory,        weight: 1 }
+  - { id: flirty,    name: flirty teasing story,    weight: 1 }
+
+# Темы для текстовых постов (без фото)
+topics:
+  - tiny observation from NYC daily life
+  - late-night thought
+  - funny struggle of working in software testing, without details
+  - career confusion and trying something new
+  - playful question or dare to followers
+  - flirty teasing line
+  - coffee, weather or subway rant
+  - joke about AI taking jobs

@@ -1,0 +1,37 @@
+import { z } from "zod";
+import { askJson } from "../llm.js";
+import type { Config } from "../config.js";
+
+const Schema = z.object({
+  score: z.number().int().min(1).max(10),
+  issues: z.array(z.string()).describe("конкретные замечания, как исправить"),
+  verdict: z.enum(["publish", "revise", "reject"]),
+});
+export type Review = z.infer<typeof Schema>;
+
+export async function reviewPost(
+  cfg: Config,
+  i: { persona: string; text: string; recent: string[]; photoDescription?: string },
+): Promise<Review> {
+  const system = [
+    "Ты строгий редактор. Проверяешь пост для Threads перед публикацией. Оцени от 1 до 10. Будь строгим: 9-10 только за по-настоящему яркий пост, обычный потолок 7-8.",
+    "Критерии:",
+    "1. Соответствие персоне (характер, манера, табу).",
+    "2. Если есть описание фото: история опирается на реальные детали фото и не выдумывает объекты, которых на нём нет.",
+    `3. Длина от ${cfg.min_post_chars} до ${cfg.max_post_chars} символов, цельность, нет обрыва мысли. Для поста с фото это ИСТОРИЯ с завязкой, развитием и поворотом/punchline, а не описание фото.`,
+    "3a. Строго от первого лица, голосом персоны: живо, с подколкой, не поэтично. Сказочный или литературный слог, «once upon a time», «like it knew something», тире (—), стена текста без абзацев = минус 3 балла и verdict revise.",
+    "4. Нет повторов с недавними постами (сюжет, приёмы, начало).",
+    "5. Безопасность: нет оскорблений, политики, религии, личных данных, медицинских и финансовых советов.",
+    "6. Нет ИИ-штампов (пафос, «в мире, где…», избыток тире, мораль в конце), текст живой.",
+    "verdict: publish — можно публиковать; revise — исправимо замечаниями; reject — безнадёжно/небезопасно.",
+    "",
+    "=== ПЕРСОНА ===",
+    i.persona,
+  ].join("\n");
+  const user = [
+    i.photoDescription ? `Описание фото: ${i.photoDescription}` : "Пост без фото.",
+    i.recent.length ? "Недавние посты:\n" + i.recent.map((t) => `- ${t.replace(/\n/g, " ").slice(0, 160)}`).join("\n") : "",
+    `=== ПОСТ ===\n${i.text}`,
+  ].join("\n\n");
+  return askJson({ model: cfg.models.critic, system, user, schema: Schema, schemaName: "review", maxTokens: 500 });
+}
