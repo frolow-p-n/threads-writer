@@ -21,6 +21,7 @@
 | `npm run cli -- pause --on 1` | Поставить агента на паузу (действует сразу и в GitHub) |
 | `npm run cli -- pause --on 0` | Снять паузу |
 | `npm run cli -- upload-photos` | Сжать и загрузить новые фото из `photos/` в Supabase |
+| `npm run cli -- notify-test` | Отправить тестовое уведомление в Telegram |
 | `npm run cli -- threads-check` | Проверить токен и аккаунт Threads |
 | `npm run typecheck` | Проверка типов |
 
@@ -61,3 +62,6 @@ OpenAI: около $0.01 за пост (3-4 вызова), около $0.5 в м
 | Пост не вышел в слот | Критик забраковал 3 попытки (слот ждёт следующий тик), либо опоздание больше 3 часов, либо включена пауза |
 | `git push` отклонён из-за workflow | Нужен scope `workflow`: `gh auth refresh -h github.com -s workflow` |
 | `У фото нет public_url` | Сначала `upload-photos` |
+
+## Уведомления в Telegram
+Бот `@threadswriternotifier_bot` (отдельный от платёжного) пишет в топик группы: после каждой публикации со ссылкой на пост, при пропуске слота, при трёх бракованных попытках критика и при падении запуска GitHub. Настройки: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_TOPIC_ID` в `.env` и в GitHub Secrets. Проверка: `npm run cli -- notify-test`. Если уведомления не нужны, удалите эти переменные: код тогда молча пропускает отправку. Чтобы сменить топик, поменяйте `TELEGRAM_TOPIC_ID` в обоих местах.

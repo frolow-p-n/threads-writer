@@ -74,7 +74,13 @@ async function planCmd() {
   }
 }
 
-const commands: Record<string, () => Promise<void>> = {
+async function notifyTest() {
+  const { notify } = await import("./notify.js");
+  await notify("🔔 Тест: уведомления ThreadsWriter работают");
+  console.log("Тестовое сообщение отправлено");
+}
+
+const commands: Record<string, () => Promise<void>> = { "notify-test": notifyTest,
   "dry-run": dryRun, "upload-photos": uploadPhotos, "threads-check": threadsCheck,
   publish: publishCmd, tick: tickCmd, pause: pauseCmd, "plan-day": planCmd,
 };
@@ -87,6 +93,7 @@ if (!cmd || !commands[cmd]) {
     "  publish --id N           опубликовать черновик/одобренный пост",
     "  tick [--dry]             один тик планировщика (то, что запускает GitHub Actions)",
     "  pause [--on 0|1]         поставить агента на паузу / снять",
+    "  notify-test              отправить тестовое уведомление в Telegram",
     "  plan-day                 показать пример случайных слотов на сегодня",
   ].join("\n"));
   process.exit(cmd ? 1 : 0);

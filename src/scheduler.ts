@@ -2,6 +2,7 @@ import type { Config } from "./config.js";
 import { addSlots, getState, slotsForDay, updateSlot } from "./store.js";
 import { generatePost } from "./pipeline.js";
 import { publishApproved } from "./publisher.js";
+import { notify } from "./notify.js";
 
 const GRACE_MS = 3 * 3600_000; // слот старше 3 часов пропускаем, а не публикуем «с опозданием»
 
@@ -46,19 +47,26 @@ export async function tick(cfg: Config, persona: string, opts: { dry?: boolean }
     if (s.done_at || s.skipped) continue;
     const at = new Date(s.slot_at).getTime();
     if (at > now) continue;
-    if (now - at > GRACE_MS) { await updateSlot(s.id, { skipped: true }); console.log(`Слот ${s.slot_at} пропущен (опоздание > 3 ч)`); continue; }
+    if (now - at > GRACE_MS) { await updateSlot(s.id, { skipped: true }); console.log(`Слот ${s.slot_at} пропущен (опоздание > 3 ч)`); await notify(`⚠️ Слот ${s.slot_at} пропущен (опоздание больше 3 часов)`); continue; }
     if (opts.dry) { console.log(`[dry] подошёл слот ${s.slot_at}: сгенерировал бы и опубликовал пост`); acted++; continue; }
 
     let postId: number | undefined;
+    let lastIssues: string[] = [];
+    let lastScore = 0;
     for (let attempt = 1; attempt <= 3 && !postId; attempt++) {
       const r = await generatePost(cfg, persona, "photo");
       console.log(`Попытка ${attempt}: ${r.status}, score ${r.score}`);
+      lastIssues = r.issues; lastScore = r.score;
       if (r.status === "approved") postId = r.postId;
     }
-    if (!postId) { console.warn("Критик не пропустил ни одну из 3 попыток; слот остаётся на следующий тик"); continue; }
+    if (!postId) { console.warn("Критик не пропустил ни одну из 3 попыток; слот остаётся на следующий тик");
+      const why = lastIssues.slice(0, 3).map((x) => "- " + x).join("\n");
+      await notify(`⚠️ Критик забраковал 3 попытки (последняя оценка ${lastScore}). Слот ${s.slot_at} повторится на следующем запуске.\n${why}`);
+      continue; }
     const link = await publishApproved(postId);
     await updateSlot(s.id, { post_id: postId, done_at: new Date().toISOString() });
     console.log(`Опубликовано: ${link}`);
+    await notify(`✅ Опубликован пост\n${link}`);
     acted++;
   }
   if (!acted) console.log("Сейчас публиковать нечего");
