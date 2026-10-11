@@ -6,7 +6,7 @@ import { generatePost } from "./pipeline.js";
 import { publishApproved } from "./publisher.js";
 import { notify } from "./notify.js";
 
-const GRACE_MS = 3 * 3600_000; // слот старше 3 часов пропускаем, а не публикуем «с опозданием»
+const GRACE_MS = 6 * 3600_000; // слот старше 6 часов пропускаем, а не публикуем «с опозданием»
 
 /** Дата YYYY-MM-DD в заданном часовом поясе. */
 export const dayIn = (tz: string, d = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(d);
@@ -57,7 +57,7 @@ export async function tick(cfg: Config, persona: string, opts: { dry?: boolean }
     if (s.done_at || s.skipped) continue;
     const at = new Date(s.slot_at).getTime();
     if (at > now) continue;
-    if (now - at > GRACE_MS) { await updateSlot(s.id, { skipped: true }); console.log(`Слот ${s.slot_at} пропущен (опоздание > 3 ч)`); await notify(`⚠️ Слот ${s.slot_at} пропущен (опоздание больше 3 часов)`); continue; }
+    if (now - at > GRACE_MS) { await updateSlot(s.id, { skipped: true }); console.log(`Слот ${s.slot_at} пропущен (опоздание > 6 ч)`); await notify(`⚠️ Слот ${s.slot_at} пропущен (опоздание больше 6 часов)`); continue; }
     if (opts.dry) { console.log(`[dry] подошёл слот ${s.slot_at}: сгенерировал бы и опубликовал пост`); acted++; continue; }
 
     // Быстрая проверка API до генерации: если Threads недоступен, ничего не тратим.
