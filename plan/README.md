@@ -12,6 +12,7 @@
 | [04-hosting.md](04-hosting.md) | Бесплатный хостинг и рекомендуемая связка |
 | [05-models-costs.md](05-models-costs.md) | Модели OpenAI, цены, оценка расходов |
 | [06-risks.md](06-risks.md) | Риски и меры |
+| [07-operations.md](07-operations.md) | Эксплуатация: команды, GitHub Actions, пауза, фото, токен, проблемы |
 | [STATUS.md](STATUS.md) | Текущий прогресс (обновлять по ходу работы) |
 
 ## Решения, принятые на данный момент
@@ -20,3 +21,5 @@
 - Модели: gpt-4o-mini (vision), gpt-4.1-mini (writer, critic); имена в config/config.yaml
 - Метаданные постов (жанр, тема, время, оценка критика) пишутся в БД с первого дня для будущей аналитики.
 - Фото: 2 поста в день, формат всегда фото + история, хранилище Supabase Storage (JPEG, сжатие), часовой пояс America/New_York.
+- Хостинг: GitHub Actions cron (каждые 30 мин) + Supabase (БД tw_* и Storage). Vercel не используется (cron Hobby только раз в сутки).
+- Режим: полностью автономный, без Telegram-одобрения.
