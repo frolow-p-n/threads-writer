@@ -40,10 +40,10 @@ export function setEnv(key: string, value: string, file = ".env") {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Публикация поста: контейнер -> ожидание обработки -> threads_publish. Возвращает {id, permalink}. */
-export async function publishPost(opts: { userId: string; token: string; text: string; imageUrl?: string }) {
-  const { userId, token, text, imageUrl } = opts;
+export async function publishPost(opts: { userId: string; token: string; text: string; imageUrl?: string; replyToId?: string }) {
+  const { userId, token, text, imageUrl, replyToId } = opts;
   const container = await api<{ id: string }>(`/v1.0/${userId}/threads`, {
-    media_type: imageUrl ? "IMAGE" : "TEXT", text, ...(imageUrl ? { image_url: imageUrl } : {}), access_token: token,
+    media_type: imageUrl ? "IMAGE" : "TEXT", text, ...(imageUrl ? { image_url: imageUrl } : {}), ...(replyToId ? { reply_to_id: replyToId } : {}), access_token: token,
   }, "POST");
   // Meta рекомендует подождать перед публикацией; проверяем статус контейнера.
   for (let i = 0; i < 12; i++) {
@@ -55,4 +55,25 @@ export async function publishPost(opts: { userId: string; token: string; text: s
   const pub = await api<{ id: string }>(`/v1.0/${userId}/threads_publish`, { creation_id: container.id, access_token: token }, "POST");
   const info = await api<{ permalink?: string }>(`/v1.0/${pub.id}`, { fields: "permalink", access_token: token });
   return { id: pub.id, permalink: info.permalink };
+}
+
+export interface ThreadsComment {
+  id: string; text?: string; username?: string; timestamp?: string;
+  replied_to?: { id: string }; is_reply_owned_by_me?: boolean; hide_status?: string;
+}
+
+/** Все комментарии под постом (включая вложенные), до 3 страниц. */
+export async function getConversation(mediaId: string, token: string): Promise<ThreadsComment[]> {
+  const out: ThreadsComment[] = [];
+  let after: string | undefined;
+  for (let page = 0; page < 3; page++) {
+    const r = await api<{ data: ThreadsComment[]; paging?: { cursors?: { after?: string }; next?: string } }>(
+      `/v1.0/${mediaId}/conversation`,
+      { fields: "id,text,username,timestamp,replied_to,is_reply_owned_by_me,hide_status", access_token: token, ...(after ? { after } : {}) },
+    );
+    out.push(...r.data);
+    after = r.paging?.next ? r.paging.cursors?.after : undefined;
+    if (!after) break;
+  }
+  return out;
 }

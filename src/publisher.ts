@@ -1,4 +1,4 @@
-import { getPost, getState, markPublished, setState } from "./store.js";
+import { getPost, getState, markPhotoUsed, markPublished, setState } from "./store.js";
 import { publishPost, refreshToken } from "./threads.js";
 
 const DAY = 86400_000;
@@ -36,5 +36,6 @@ export async function publishApproved(id: number): Promise<string> {
   if (!userId) throw new Error("Нет THREADS_USER_ID");
   const r = await publishPost({ userId, token: await getToken(), text: post.text, imageUrl: post.public_url ?? undefined });
   await markPublished(id, r.id);
+  if (post.photo_id) await markPhotoUsed(post.photo_id);
   return r.permalink ?? r.id;
 }

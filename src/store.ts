@@ -73,3 +73,27 @@ export const addSlots = (day: string, times: Date[]) =>
   sb("POST", "tw_schedule?on_conflict=day,slot_at", times.map((t) => ({ day, slot_at: t.toISOString() })), "resolution=ignore-duplicates");
 export const updateSlot = (id: number, patch: Partial<Pick<SlotRow, "post_id" | "done_at" | "skipped">>) =>
   sb("PATCH", `tw_schedule?id=eq.${id}`, patch);
+
+// ---- comments / replies ----
+export const publishedPostsSince = (days: number) =>
+  sb<{ id: number; threads_id: string; text: string }[]>(
+    "GET", `tw_posts?select=id,threads_id,text&status=eq.published&threads_id=not.is.null&published_at=gte.${new Date(Date.now() - days * 86400_000).toISOString()}&order=id.desc`);
+
+export async function knownCommentIds(ids: string[]): Promise<Set<string>> {
+  if (!ids.length) return new Set();
+  const r = await sb<{ id: string }[]>("GET", `tw_comments?select=id&id=in.(${ids.join(",")})`);
+  return new Set(r.map((x) => x.id));
+}
+export const saveComment = (c: {
+  id: string; post_id: number; username?: string; text?: string; commented_at?: string;
+  class: string; reply_text?: string; reply_id?: string; replied_at?: string;
+}) => sb("POST", "tw_comments?on_conflict=id", c, "resolution=ignore-duplicates");
+
+export async function repliesSentSince(sinceIso: string): Promise<number> {
+  const r = await sb<{ id: string }[]>("GET", `tw_comments?select=id&replied_at=gte.${encodeURIComponent(sinceIso)}`);
+  return r.length;
+}
+/** Наши прошлые ответы этому человеку под этим постом (для истории диалога и лимита). */
+export const repliesToUser = (postId: number, username: string) =>
+  sb<{ text: string | null; reply_text: string }[]>(
+    "GET", `tw_comments?select=text,reply_text&post_id=eq.${postId}&username=eq.${encodeURIComponent(username)}&reply_text=not.is.null&order=commented_at.asc`);

@@ -38,7 +38,7 @@ timezone: America/New_York
 jitter_minutes: 25
 photo_post_ratio: 1.0
 approval_mode: true
-models: { writer: gpt-4.1-mini, critic: gpt-4.1-mini, vision: gpt-4o-mini, classifier: gpt-5-nano }
+
 ```
 
 ## Режимы

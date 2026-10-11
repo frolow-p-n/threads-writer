@@ -80,7 +80,13 @@ async function notifyTest() {
   console.log("Тестовое сообщение отправлено");
 }
 
-const commands: Record<string, () => Promise<void>> = { "notify-test": notifyTest,
+async function repliesCmd() {
+  const { replyRound } = await import("./replier.js");
+  await replyRound(loadConfig(), loadPersona(), { dry: flag("dry") });
+}
+
+const commands: Record<string, () => Promise<void>> = {
+  replies: repliesCmd, "notify-test": notifyTest,
   "dry-run": dryRun, "upload-photos": uploadPhotos, "threads-check": threadsCheck,
   publish: publishCmd, tick: tickCmd, pause: pauseCmd, "plan-day": planCmd,
 };
@@ -92,6 +98,7 @@ if (!cmd || !commands[cmd]) {
     "  threads-check            проверить токен Threads",
     "  publish --id N           опубликовать черновик/одобренный пост",
     "  tick [--dry]             один тик планировщика (то, что запускает GitHub Actions)",
+    "  replies [--dry]          обработать новые комментарии (--dry: показать ответы, не отправляя)",
     "  pause [--on 0|1]         поставить агента на паузу / снять",
     "  notify-test              отправить тестовое уведомление в Telegram",
     "  plan-day                 показать пример случайных слотов на сегодня",

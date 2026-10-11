@@ -1,5 +1,7 @@
 import type { Config } from "./config.js";
-import { addSlots, getState, slotsForDay, updateSlot } from "./store.js";
+import { addSlots, getState, setState, slotsForDay, updateSlot } from "./store.js";
+import { getToken } from "./publisher.js";
+import { getMe } from "./threads.js";
 import { generatePost } from "./pipeline.js";
 import { publishApproved } from "./publisher.js";
 import { notify } from "./notify.js";
@@ -31,6 +33,14 @@ export function planDay(cfg: Config, day: string): Date[] {
   }).sort((x, y) => x.getTime() - y.getTime());
 }
 
+/** Уведомление не чаще, чем раз в N часов на ключ (чтобы сбои не засыпали чат). */
+async function alertThrottled(key: string, text: string, hours = 6) {
+  const last = Number((await getState("alert_" + key)) ?? 0);
+  if (Date.now() - last < hours * 3600_000) return;
+  await setState("alert_" + key, String(Date.now()));
+  await notify(text);
+}
+
 /** Один тик планировщика: создаёт слоты дня и публикует то, что подошло по времени. */
 export async function tick(cfg: Config, persona: string, opts: { dry?: boolean } = {}) {
   if ((await getState("paused")) === "1") return console.log("Агент на паузе (tw_state.paused=1)");
@@ -50,24 +60,53 @@ export async function tick(cfg: Config, persona: string, opts: { dry?: boolean }
     if (now - at > GRACE_MS) { await updateSlot(s.id, { skipped: true }); console.log(`Слот ${s.slot_at} пропущен (опоздание > 3 ч)`); await notify(`⚠️ Слот ${s.slot_at} пропущен (опоздание больше 3 часов)`); continue; }
     if (opts.dry) { console.log(`[dry] подошёл слот ${s.slot_at}: сгенерировал бы и опубликовал пост`); acted++; continue; }
 
-    let postId: number | undefined;
+    // Быстрая проверка API до генерации: если Threads недоступен, ничего не тратим.
+    try {
+      await getMe(await getToken());
+    } catch (e) {
+      console.warn("Threads API недоступен:", (e as Error).message);
+      await alertThrottled("api", `❌ Threads API недоступен, публикация отложена: ${(e as Error).message}`);
+      break;
+    }
+
+    // Если для слота пост уже сгенерирован (прошлая публикация упала), публикуем его, а не создаём новый.
+    let postId: number | undefined = s.post_id ?? undefined;
     let lastIssues: string[] = [];
     let lastScore = 0;
     for (let attempt = 1; attempt <= 3 && !postId; attempt++) {
       const r = await generatePost(cfg, persona, "photo");
       console.log(`Попытка ${attempt}: ${r.status}, score ${r.score}`);
       lastIssues = r.issues; lastScore = r.score;
-      if (r.status === "approved") postId = r.postId;
+      if (r.status === "approved") {
+        postId = r.postId;
+        await updateSlot(s.id, { post_id: postId });
+      }
     }
     if (!postId) { console.warn("Критик не пропустил ни одну из 3 попыток; слот остаётся на следующий тик");
       const why = lastIssues.slice(0, 3).map((x) => "- " + x).join("\n");
       await notify(`⚠️ Критик забраковал 3 попытки (последняя оценка ${lastScore}). Слот ${s.slot_at} повторится на следующем запуске.\n${why}`);
       continue; }
-    const link = await publishApproved(postId);
+    let link: string;
+    try {
+      link = await publishApproved(postId);
+    } catch (e) {
+      console.error("Публикация не удалась:", (e as Error).message);
+      await alertThrottled("publish", `❌ Не удалось опубликовать пост ${postId}: ${(e as Error).message}
+Повторю на следующем запуске.`, 2);
+      continue;
+    }
     await updateSlot(s.id, { post_id: postId, done_at: new Date().toISOString() });
     console.log(`Опубликовано: ${link}`);
     await notify(`✅ Опубликован пост\n${link}`);
     acted++;
   }
   if (!acted) console.log("Сейчас публиковать нечего");
+  if (!opts.dry) {
+    const { replyRound } = await import("./replier.js");
+    try {
+      await replyRound(cfg, persona);
+    } catch (e) {
+      console.warn("Ответы на комментарии: ошибка", (e as Error).message); // не роняем запуск из-за комментариев
+    }
+  }
 }

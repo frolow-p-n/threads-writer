@@ -66,3 +66,5 @@ alter table tw_comments enable row level security;
 alter table tw_insights enable row level security;
 alter table tw_state enable row level security;
 alter table tw_schedule enable row level security;
+
+-- (после стадии 7 добавлено в supabase/migrations/002_comments.sql: username, commented_at, reply_id, created_at)

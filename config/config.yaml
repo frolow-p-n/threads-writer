@@ -16,6 +16,19 @@ models:
   vision: gpt-4o-mini
   writer: gpt-4.1-mini
   critic: gpt-4.1-mini
+  classifier: gpt-4.1-mini
+
+# Ответы на комментарии
+replies:
+  enabled: true
+  max_per_day: 40               # потолок ответов в сутки
+  max_per_run: 8                # за один запуск (раз в 30 мин), чтобы не отвечать пачкой
+  delay_min: 2                  # минут: ждём после комментария, прежде чем ответить
+  delay_max: 10                 # у каждого комментария своя задержка в этих рамках
+  reaction_reply_chance: 0.5    # на короткие реакции (эмодзи, nice) отвечаем в половине случаев
+  max_replies_per_user_per_post: 2
+  lookback_days: 7              # смотрим комментарии под постами за последние N дней
+  reply_max_chars: 240
 
 # Жанры историй к фото: вес = относительная вероятность
 genres:

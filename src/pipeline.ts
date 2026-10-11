@@ -1,4 +1,4 @@
-import { insertPost, markPhotoUsed, pickPhoto, recentPostTexts } from "./store.js";
+import { insertPost, pickPhoto, recentPostTexts } from "./store.js";
 import { describePhoto } from "./agents/vision.js";
 import { writePost, type Draft } from "./agents/writer.js";
 import { reviewPost } from "./agents/critic.js";
@@ -75,7 +75,6 @@ export async function generatePost(cfg: Config, persona: string, forceType?: "te
     status: ok ? (dry ? "draft" : "approved") : "rejected", type: finalType, text, genre: genre?.id ?? null, topic: draft!.topic,
     mood: draft!.mood, length: text.length, critic_score: score, revisions, photo_id: useCfgPhoto ? photo!.id : null,
   });
-  if (ok && !dry && useCfgPhoto) await markPhotoUsed(photo!.id);
 
   return {
     status: ok ? "approved" : "rejected", type: finalType, text, genre: genre?.name, topic: draft!.topic,
