@@ -93,6 +93,24 @@ async function checkReply(cfg: Config, persona: string, o: { comment: string; re
   });
 }
 
+/** Одна строка, без переносов, с обрезкой. */
+const oneLine = (t: string, n: number) => {
+  const x = t.replace(/\s+/g, " ").trim();
+  return x.length > n ? x.slice(0, n - 1) + "…" : x;
+};
+
+/** Склеивает записи отчёта через пустую строку, разбивая на сообщения до limit символов. */
+function chunk(items: string[], limit: number): string[] {
+  const out: string[] = [];
+  let cur = "";
+  for (const it of items) {
+    if (cur && cur.length + it.length + 2 > limit) { out.push(cur); cur = ""; }
+    cur += (cur ? "\n\n" : "") + it;
+  }
+  if (cur) out.push(cur);
+  return out;
+}
+
 const EMOJI_ONLY = /^[\p{Extended_Pictographic}\p{Emoji_Component}\s‍️]+$/u;
 
 /** Задержка перед ответом: у каждого комментария своя, стабильная между запусками. */
@@ -142,7 +160,9 @@ export async function replyRound(cfg: Config, persona: string, opts: { dry?: boo
       const cls = await classify(cfg, post.text, c.text!);
       if (cls.class === "ignore") {
         await save("ignore");
-        report.push(`🚫 @${c.username}: ${c.text!.slice(0, 60)} (${cls.reason})`);
+        report.push(`🚫 Пропущен @${c.username}
+💭 ${oneLine(c.text!, 100)}
+ℹ️ ${cls.reason}`);
         continue;
       }
       if (cls.class === "reaction" && Math.random() > rc.reaction_reply_chance) {
@@ -174,7 +194,8 @@ export async function replyRound(cfg: Config, persona: string, opts: { dry?: boo
       }
       if (!reply) {
         await save("rejected_by_critic");
-        report.push(`⚠️ @${c.username}: не нашёл безопасный ответ на «${c.text!.slice(0, 60)}»`);
+        report.push(`⚠️ Нет безопасного ответа для @${c.username}
+💭 ${oneLine(c.text!, 100)}`);
         continue;
       }
 
