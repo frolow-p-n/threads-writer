@@ -54,6 +54,14 @@ export async function generatePost(cfg: Config, persona: string, forceType?: "te
     score = review.score;
     issues = [...review.issues];
     verdict = review.verdict;
+    if (finalType === "photo") {
+      const emoji = (draft.text.match(/\p{Extended_Pictographic}/gu) ?? []).length;
+      if (emoji < 4) {
+        issues.push(`Мало эмодзи: ${emoji}. Нужно 5-8, разбросанных по тексту (в конце абзацев и после ключевых моментов).`);
+        verdict = "revise";
+        score = Math.min(score, cfg.critic_min_score - 1);
+      }
+    }
     if (draft.text.length < cfg.min_post_chars) {
       issues.push(`Слишком коротко: ${draft.text.length} < ${cfg.min_post_chars}. Развей историю: завязка, развитие, поворот.`);
       verdict = "revise";

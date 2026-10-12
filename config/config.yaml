@@ -6,10 +6,10 @@ jitter_minutes: 25
 
 # Контент
 photo_post_ratio: 1.0      # доля постов с фото (1.0 = всегда фото + история)
-min_post_chars: 330        # истории должны быть полноценными
+min_post_chars: 300        # истории должны быть полноценными
 max_post_chars: 500        # лимит Threads
 critic_min_score: 7
-max_revisions: 2
+max_revisions: 3
 memory_size: 30            # сколько прошлых постов подмешивать в промпт
 
 models:
