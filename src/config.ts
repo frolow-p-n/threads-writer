@@ -13,7 +13,7 @@ const Config = z.object({
   critic_min_score: z.number(),
   max_revisions: z.number(),
   memory_size: z.number(),
-  models: z.object({ vision: z.string(), writer: z.string(), critic: z.string(), classifier: z.string() }),
+  models: z.object({ vision: z.string(), writer: z.string(), story: z.string(), critic: z.string(), classifier: z.string() }),
   replies: z.object({
     enabled: z.boolean(),
     max_per_day: z.number(),

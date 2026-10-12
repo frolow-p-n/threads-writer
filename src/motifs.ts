@@ -5,6 +5,7 @@ const MOTIFS: { name: string; re: RegExp }[] = [
   { name: "Kevin the plant", re: /\bkevin\b/i },
   { name: "mirror / reflection", re: /\b(mirror|reflections?)\b/i },
   { name: "glitch / debug jokes", re: /\b(glitch\w*|debug\w*)\b/i },
+  { name: "QA / code / bug jokes", re: /\b(bugs?|bugged|buggy|coding|software|QA|testing|patch)\b/i },
   { name: "secrets / mystery notes", re: /\b(secrets?|mysterious)\b/i },
   { name: "laptop / screen / unexpected phone message", re: /\b(laptop|screens?|notifications?|text message|unknown number)\b/i },
   { name: "plot twist", re: /\bplot twist\b/i },

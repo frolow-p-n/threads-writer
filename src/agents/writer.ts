@@ -48,6 +48,7 @@ export async function writePost(cfg: Config, i: WriteInput): Promise<Draft> {
       `Идея первой фразы (можно улучшить): ${i.idea.opening}`,
       `Форма подачи: ${i.idea.device}. Тон: ${i.genre}.`,
       i.idea.holiday ? `Тема праздника: ${i.idea.holiday}. Вплети её естественно, назвав праздник или его атрибуты.` : "",
+      "СТРОГО от первого лица («I», «my»): рассказывает сама героиня, никогда не «she». Голос колкий, дерзкий, с лёгким флиртом, без поэзии и расплывчатых «мудрых» фраз. Концовка это яркая punchline, подколка или смелый вызов читателю, а не вялое резюме и не мораль. IT-шутки (баги, код, глюки, тестирование) не используй как основу сюжета.",
       "Это настоящая история с завязкой, развитием и поворотом, а не описание картинки. Не начинай с «Once upon a time». Запрещены ходы «посмотрела в зеркало/на экран и увидела странное», отражение, глюк, таинственная записка. Эмодзи по настроению, 5-8 штук, разбросаны по тексту (в конце абзацев и после ключевых моментов), а не кучкой в конце.",
     ];
     parts.push(...lines.filter(Boolean));
@@ -71,7 +72,7 @@ export async function writePost(cfg: Config, i: WriteInput): Promise<Draft> {
   if (i.feedback?.length) {
     parts.push(`Предыдущая версия:\n${i.previous}`, "Замечания, которые нужно учесть:", ...i.feedback.map((f) => `- ${f}`));
   }
-  const r = await askJson({ model: cfg.models.writer, system, user: parts.join("\n"), schema: Schema, schemaName: "draft", maxTokens: 700 });
+  const r = await askJson({ model: cfg.models.story, system, user: parts.join("\n"), schema: Schema, schemaName: "draft", maxTokens: 700 });
   // Жёсткая гарантия вместо надежды на промпт: убираем тире в каждом абзаце, абзацы соединяем пустой строкой.
   const text = r.paragraphs
     .map((p) => p.replace(/\s*[—–]\s*/g, ", ").replace(/,\s*,/g, ",").trim())
@@ -86,7 +87,7 @@ const TightSchema = z.object({ paragraphs: z.array(z.string()).min(2).max(4) });
 export async function tightenPost(cfg: Config, persona: string, text: string, maxChars: number): Promise<string> {
   const target = maxChars - 40;
   const r = await askJson({
-    model: cfg.models.writer,
+    model: cfg.models.story,
     system: [
       `Ты редактор. Сократи пост до ${target} символов или меньше (сейчас ${text.length}; считаются и эмодзи). Сохрани сюжет, поворот, концовку, голос персоны и 3 абзаца.`,
       "Убирай второстепенные детали, лишние прилагательные и повторы. Не добавляй ничего нового. Оставь 5-8 эмодзи. Никаких тире (—).",

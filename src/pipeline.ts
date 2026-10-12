@@ -118,6 +118,15 @@ export async function generatePost(cfg: Config, persona: string, opts: GenerateO
         score = Math.min(score, cfg.critic_min_score - 1);
       }
     }
+    if (finalType === "photo") {
+      // Голос: рассказ строго от первого лица. «She/Her» в начале предложения означает уход в третье лицо.
+      const firstPerson = (draft.text.match(/\b(I|I'm|I’m|I've|I’ve|I'd|I’d|my|me|myself)\b/g) ?? []).length;
+      if (firstPerson < 3) {
+        issues.push("Рассказ должен быть строго от первого лица (I, my, me): рассказывает сама героиня, не «she/her».");
+        verdict = "revise";
+        score = Math.min(score, cfg.critic_min_score - 1);
+      }
+    }
     const repeated = motifsIn(draft.text, avoid);
     if (repeated.length) {
       issues.push(`Повтор надоевших образов: ${repeated.join("; ")}. Убери их, возьми свежую деталь.`);
