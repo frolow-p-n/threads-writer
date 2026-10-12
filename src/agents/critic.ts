@@ -11,7 +11,7 @@ export type Review = z.infer<typeof Schema>;
 
 export async function reviewPost(
   cfg: Config,
-  i: { persona: string; text: string; recent: string[]; photoDescription?: string; holiday?: string },
+  i: { persona: string; text: string; recent: string[]; photoDescription?: string; holiday?: string; now?: string },
 ): Promise<Review> {
   const system = [
     "Ты строгий редактор. Проверяешь пост для Threads перед публикацией. Оцени от 1 до 10. Будь строгим: 9-10 только за по-настоящему яркий пост, обычный потолок 7-8.",
@@ -31,6 +31,7 @@ export async function reviewPost(
   const user = [
     i.photoDescription ? `Описание фото: ${i.photoDescription}` : "Пост без фото.",
     i.recent.length ? "Недавние посты:\n" + i.recent.map((t) => `- ${t.replace(/\n/g, " ").slice(0, 160)}`).join("\n") : "",
+    i.now ? `${i.now} Проверь, что упоминания времени суток, дня недели, сезона и погоды не противоречат этому.` : "",
     i.holiday ? `Пост намеренно тематический: ${i.holiday}. Праздничные мотивы это норма.` : "",
     `=== ПОСТ ===\n${i.text}`,
   ].filter(Boolean).join("\n\n");

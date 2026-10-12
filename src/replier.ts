@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Config } from "./config.js";
 import { askJson } from "./llm.js";
 import { notify } from "./notify.js";
+import { TIME_RULE, nyNow, timeMismatches } from "./clock.js";
 import { getToken } from "./publisher.js";
 import { getConversation, getMe, publishPost, type ThreadsComment } from "./threads.js";
 import { knownCommentIds, publishedPostsSince, repliesSentSince, repliesToUser, saveComment } from "./store.js";
@@ -42,6 +43,7 @@ async function writeReply(
   persona: string,
   o: { post: string; comment: string; username: string; history: string[]; mode: Mode; feedback?: string },
 ) {
+  const now = nyNow(cfg.timezone);
   const modeRule = {
     emoji: "Ответь ТОЛЬКО 1-3 эмодзи, подходящими по смыслу. Никаких слов.",
     text: `Ответь коротко, живо, в образе: 1-2 предложения, до ${cfg.replies.reply_max_chars} символов. Можно 0-2 эмодзи, лёгкая подколка или флирт, если уместно.`,
@@ -53,6 +55,8 @@ async function writeReply(
     "Каждый ответ уникален: не повторяй одни и те же шутки и приёмы. Бытовые детали персоны (снеки, Кевин-фикус, кофе, пицца) упоминай редко, максимум в одном ответе из пяти, и только если они реально к месту. Реагируй на то, что написал человек.",
     "Без хэштегов, без тире (—). Не раскрывай, откуда она родом и где работает. Не обещай встреч, не давай контактов, не проси денег и не зови в другие мессенджеры.",
     "Если спрашивают, человек ли она или ИИ, не утверждай, что она человек: уйди в шутку или поддразни.",
+    now.text,
+    TIME_RULE,
     UNTRUSTED,
     "",
     "=== ПЕРСОНА ===",
@@ -182,6 +186,11 @@ export async function replyRound(cfg: Config, persona: string, opts: { dry?: boo
         const cand = await writeReply(cfg, persona, { post: post.text, comment: c.text!, username: c.username!, history, mode, feedback });
         if (!cand || cand.length > rc.reply_max_chars) {
           feedback = "слишком длинно или пусто";
+          continue;
+        }
+        const wrongTime = timeMismatches(cand, nyNow(cfg.timezone));
+        if (wrongTime.length) {
+          feedback = `время не совпадает с реальным: ${wrongTime.join("; ")}`;
           continue;
         }
         if (mode === "emoji" && !EMOJI_ONLY.test(cand)) {

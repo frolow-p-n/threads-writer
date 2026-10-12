@@ -6,6 +6,7 @@ import { ideate, type Idea } from "./agents/ideator.js";
 import { chooseHoliday, whenText } from "./holidays.js";
 import { DEVICES, FANTASY_WORLDS, GROUNDED_SITUATIONS, TWISTS, pickAvoiding } from "./ideas.js";
 import { motifsIn, overusedMotifs } from "./motifs.js";
+import { nyNow, timeMismatches } from "./clock.js";
 import type { Config } from "./config.js";
 
 export interface Result {
@@ -59,6 +60,8 @@ export async function generatePost(cfg: Config, persona: string, opts: GenerateO
   let avoid = overusedMotifs(recent);
   if (holiday) avoid = avoid.filter((m) => !m.startsWith("snacks")); // еда уместна в праздники
 
+  const now = nyNow(cfg.timezone);
+
   // Замысел: фото лишь зацепка, сюжет придумывает отдельный шаг на «кубиках» разнообразия.
   let idea: Idea | undefined;
   let device = "";
@@ -78,6 +81,7 @@ export async function generatePost(cfg: Config, persona: string, opts: GenerateO
       tone: genre!.name,
       holiday: holiday ? { name: holiday.def.name, theme: holiday.def.theme, when: whenText(holiday) } : undefined,
       recentTopics: topics,
+      now: now.text,
     });
   }
   const holidayNote = holiday ? `${holiday.def.name}: ${holiday.def.theme}` : undefined;
@@ -99,6 +103,7 @@ export async function generatePost(cfg: Config, persona: string, opts: GenerateO
       feedback,
       previous: draft?.text,
       avoid,
+      now: now.text,
       idea: idea && { hook: idea.hook, premise: idea.premise, opening: idea.opening, device, holiday: holidayNote },
     });
     revisions = attempt;
@@ -106,7 +111,7 @@ export async function generatePost(cfg: Config, persona: string, opts: GenerateO
     for (let t = 0; t < 3 && draft.text.length > cfg.max_post_chars; t++) {
       draft.text = await tightenPost(cfg, persona, draft.text, cfg.max_post_chars);
     }
-    const review = await reviewPost(cfg, { persona, text: draft.text, recent, photoDescription, holiday: holidayNote });
+    const review = await reviewPost(cfg, { persona, text: draft.text, recent, photoDescription, holiday: holidayNote, now: now.text });
     score = review.score;
     issues = [...review.issues];
     verdict = review.verdict;
@@ -126,6 +131,12 @@ export async function generatePost(cfg: Config, persona: string, opts: GenerateO
         verdict = "revise";
         score = Math.min(score, cfg.critic_min_score - 1);
       }
+    }
+    const wrongTime = timeMismatches(draft.text, now);
+    if (wrongTime.length) {
+      issues.push(`Время не совпадает с реальным (${now.clock}, ${now.timeOfDay}): ${wrongTime.join("; ")}. Исправь или убери упоминание времени.`);
+      verdict = "revise";
+      score = Math.min(score, cfg.critic_min_score - 1);
     }
     const repeated = motifsIn(draft.text, avoid);
     if (repeated.length) {

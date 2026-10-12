@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { askJson } from "../llm.js";
 import type { Config } from "../config.js";
+import { TIME_RULE } from "../clock.js";
 
 // Пост приходит абзацами: структура гарантируется схемой, а не надеждой на промпт.
 const Schema = z.object({
@@ -23,6 +24,7 @@ export interface WriteInput {
   feedback?: string[];     // замечания критика при переписывании
   previous?: string;
   avoid?: string[];        // образы, которые в последних постах уже встречались слишком часто
+  now?: string;            // «Сейчас в Нью-Йорке: …»
   idea?: { hook: string; premise: string; opening: string; device: string; holiday?: string };
 }
 
@@ -34,6 +36,7 @@ export async function writePost(cfg: Config, i: WriteInput): Promise<Draft> {
     "Текст отдай в поле paragraphs: 2-4 коротких абзаца (завязка, развитие, поворот или концовка), НЕ одним куском. Никаких тире (—) и хэштегов.",
     "Пиши на том языке, который указан в персоне (если английский, то только на английском).",
     "Избегай штампов ИИ («в мире, где…», избыток тире, пафос, морали в конце).",
+    ...(i.now ? [i.now, TIME_RULE] : []),
     "",
     "=== ПЕРСОНА ===",
     i.persona,

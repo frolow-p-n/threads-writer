@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { askJson } from "../llm.js";
 import type { Config } from "../config.js";
+import { TIME_RULE } from "../clock.js";
 
 const Schema = z.object({
   hook: z.string().describe("ОДНА зацепка из фото: поза, предмет, цвет, одежда, место, свет. Коротко."),
@@ -19,6 +20,7 @@ export interface IdeaInput {
   tone: string;               // жанр как тон (funny, creepy, flirty...)
   holiday?: { name: string; theme: string; when: string };
   recentTopics: string[];
+  now?: string;
 }
 
 /** Придумывает сюжетный замысел. Фото служит лишь зацепкой, сюжет может уйти куда угодно. */
@@ -31,6 +33,7 @@ export async function ideate(cfg: Config, i: IdeaInput): Promise<Idea> {
     "Следуй заданным «кубикам» (мир, поворот, форма), но творчески, не буквально, и подгони под героиню.",
     "Рассказывает сама героиня от первого лица («I»). Сюжет должен заканчиваться яркой punchline, подколкой или вызовом читателю. IT-шутки (баги, код, глюки, тестирование) НЕ делай основой сюжета.",
     "Не повторяй недавние замыслы.",
+    ...(i.now ? [i.now, TIME_RULE] : []),
     "",
     "=== ПЕРСОНА ===",
     i.persona,
