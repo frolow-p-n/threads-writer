@@ -25,6 +25,23 @@ const Config = z.object({
     lookback_days: z.number(),
     reply_max_chars: z.number(),
   }),
+  fantasy_ratio: z.number().min(0).max(1),
+  holidays: z.object({
+    enabled: z.boolean(),
+    theme_chance_in_window: z.number().min(0).max(1),
+    theme_chance_on_day: z.number().min(0).max(1),
+    list: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        month: z.number().optional(),
+        day: z.number().optional(),
+        rule: z.enum(["easter", "thanksgiving", "friday13"]).optional(),
+        lead_days: z.number(),
+        theme: z.string(),
+      }),
+    ),
+  }),
   genres: z.array(z.object({ id: z.string(), name: z.string(), weight: z.number() })),
   topics: z.array(z.string()),
 });

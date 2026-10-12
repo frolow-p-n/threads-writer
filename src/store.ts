@@ -97,3 +97,9 @@ export async function repliesSentSince(sinceIso: string): Promise<number> {
 export const repliesToUser = (postId: number, username: string) =>
   sb<{ text: string | null; reply_text: string }[]>(
     "GET", `tw_comments?select=text,reply_text&post_id=eq.${postId}&username=eq.${encodeURIComponent(username)}&reply_text=not.is.null&order=commented_at.asc`);
+
+/** Темы/замыслы прошлых постов (новые первыми): для разнообразия сюжетов. */
+export async function recentTopics(n: number): Promise<string[]> {
+  const r = await sb<{ topic: string | null }[]>("GET", `tw_posts?select=topic&status=in.(approved,published)&topic=not.is.null&order=id.desc&limit=${n}`);
+  return r.map((x) => x.topic!).filter(Boolean);
+}

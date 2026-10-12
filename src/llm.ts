@@ -18,6 +18,7 @@ export async function askJson<T>(opts: {
   schema: ZodType<T>;
   schemaName: string;
   maxTokens?: number;
+  temperature?: number; // выше = креативнее; не для моделей, которые его не поддерживают
 }): Promise<T> {
   const res = await openai().chat.completions.parse({
     model: opts.model,
@@ -27,6 +28,7 @@ export async function askJson<T>(opts: {
     ],
     response_format: zodResponseFormat(opts.schema, opts.schemaName),
     max_completion_tokens: opts.maxTokens ?? 800,
+    ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
   });
   usage.input += res.usage?.prompt_tokens ?? 0;
   usage.output += res.usage?.completion_tokens ?? 0;

@@ -74,7 +74,7 @@ export async function tick(cfg: Config, persona: string, opts: { dry?: boolean }
     let lastIssues: string[] = [];
     let lastScore = 0;
     for (let attempt = 1; attempt <= 3 && !postId; attempt++) {
-      const r = await generatePost(cfg, persona, "photo");
+      const r = await generatePost(cfg, persona, { forceType: "photo" });
       console.log(`Попытка ${attempt}: ${r.status}, score ${r.score}`);
       lastIssues = r.issues; lastScore = r.score;
       if (r.status === "approved") {

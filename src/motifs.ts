@@ -6,6 +6,7 @@ const MOTIFS: { name: string; re: RegExp }[] = [
   { name: "mirror / reflection", re: /\b(mirror|reflections?)\b/i },
   { name: "glitch / debug jokes", re: /\b(glitch\w*|debug\w*)\b/i },
   { name: "secrets / mystery notes", re: /\b(secrets?|mysterious)\b/i },
+  { name: "laptop / screen / unexpected phone message", re: /\b(laptop|screens?|notifications?|text message|unknown number)\b/i },
   { name: "plot twist", re: /\bplot twist\b/i },
   { name: "detective / clue wording", re: /\b(detective\w*|clues?)\b/i },
 ];

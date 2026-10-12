@@ -30,6 +30,26 @@ replies:
   lookback_days: 7              # смотрим комментарии под постами за последние N дней
   reply_max_chars: 240
 
+# Доля постов, где история уходит в другой мир (остальное: её жизнь с неожиданным поворотом)
+fantasy_ratio: 0.65
+
+# Праздничные недели: за lead_days дней до праздника (и в сам день) часть постов тематическая.
+holidays:
+  enabled: true
+  theme_chance_in_window: 0.65   # доля тематических постов в окне «до праздника»
+  theme_chance_on_day: 1.0       # в сам день праздника
+  list:
+    - { id: valentines,   name: "Valentine's Day",  month: 2,  day: 14, lead_days: 7, theme: "флирт, симпатия, смешные неудачные свидания, анти-валентинка, сердечки" }
+    - { id: april_fools,  name: "April Fools' Day", month: 4,  day: 1,  lead_days: 7, theme: "розыгрыши, подмена реальности, неожиданные приколы, 'это была шутка'" }
+    - { id: easter,       name: "Easter (светски)", rule: easter,       lead_days: 7, theme: "весна, кролики, поиск яиц, пастельные цвета, без религиозных мотивов" }
+    - { id: star_wars,    name: "Star Wars Day (May the 4th)", month: 5, day: 4, lead_days: 7, theme: "космическая опера, джедаи и ситхи в духе пародии, 'May the Fourth be with you', без цитат длиннее фразы" }
+    - { id: july4,        name: "4th of July",       month: 7,  day: 4,  lead_days: 7, theme: "лето, фейерверки, крыши и пикники, дух свободы без политики" }
+    - { id: halloween,    name: "Halloween",         month: 10, day: 31, lead_days: 7, theme: "хоррор с юмором, костюмы, призраки, ведьмы, тыквы, жуткие и смешные истории" }
+    - { id: thanksgiving, name: "Thanksgiving",      rule: thanksgiving, lead_days: 7, theme: "благодарность, семейный стол и хаос, остатки еды, уютные и смешные ситуации, без политики" }
+    - { id: christmas,    name: "Christmas (светски)", month: 12, day: 25, lead_days: 7, theme: "снег, огни, подарки, уют, праздничный хаос, шапки Санты, без религиозных мотивов" }
+    - { id: new_year,     name: "New Year's Eve",    month: 12, day: 31, lead_days: 7, theme: "обратный отсчёт, итоги года, резолюции и смена пути, вечеринка, полночь" }
+    - { id: friday13,     name: "Friday the 13th",   rule: friday13,     lead_days: 3, theme: "суеверия, чёрные кошки, невезение, зеркала не бить, комичное 'проклятие'" }
+
 # Жанры историй к фото: вес = относительная вероятность
 genres:
   - { id: sci-fi,    name: sci-fi,                  weight: 1 }

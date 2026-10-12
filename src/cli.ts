@@ -19,12 +19,14 @@ async function dryRun() {
   const lines: string[] = [`# Dry-run ${new Date().toISOString()}`, ""];
   for (let k = 1; k <= n; k++) {
     process.stdout.write(`[${k}/${n}] генерирую… `);
-    const r = await generatePost(cfg, persona, only, true);
-    console.log(`${r.status} id=${r.postId} score=${r.score} ревизий=${r.revisions}${r.genre ? " жанр=" + r.genre : ""}`);
+    const r = await generatePost(cfg, persona, {
+      forceType: only, dry: true, holiday: arg("holiday"), mode: arg("mode") as "fantasy" | "grounded" | undefined,
+    });
+    console.log(`${r.status} id=${r.postId} score=${r.score} ревизий=${r.revisions} режим=${r.mode ?? "-"}${r.holiday ? " праздник=" + r.holiday : ""}`);
     lines.push(
-      `## ${k}. ${r.status !== "rejected" ? "✅" : "❌"} id ${r.postId} · ${r.type}${r.genre ? " · " + r.genre : ""} · score ${r.score} · ревизий ${r.revisions}`,
+      `## ${k}. ${r.status !== "rejected" ? "✅" : "❌"} id ${r.postId} · ${r.type}${r.genre ? " · " + r.genre : ""} · ${r.mode ?? ""}${r.holiday ? " · 🎉 " + r.holiday : ""} · score ${r.score} · ревизий ${r.revisions}`,
       "",
-      r.photoPath ? `Фото: ${r.photoPath}\n\nОписание: ${r.photoDescription}\n` : "",
+      r.photoPath ? `Фото: ${r.photoPath}\n\nОписание фото: ${r.photoDescription}\n\nЗацепка: ${r.hook}\nЗамысел: ${r.premise}\n` : "",
       "```", r.text, "```", "",
       r.issues.length ? "Замечания критика:\n" + r.issues.map((x) => `- ${x}`).join("\n") + "\n" : "",
     );
@@ -93,7 +95,7 @@ const commands: Record<string, () => Promise<void>> = {
 if (!cmd || !commands[cmd]) {
   console.log([
     "Команды:",
-    "  dry-run [--n 5]          сгенерировать черновики (draft), ничего не публикуя -> out/review.md",
+    "  dry-run [--n 5] [--holiday id] [--mode fantasy|grounded]  сгенерировать черновики (draft), ничего не публикуя -> out/review.md",
     "  upload-photos            сжать и загрузить новые фото из photos/ в Supabase",
     "  threads-check            проверить токен Threads",
     "  publish --id N           опубликовать черновик/одобренный пост",
