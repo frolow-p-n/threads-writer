@@ -2,6 +2,7 @@ import { insertPost, pickPhoto, recentPostTexts } from "./store.js";
 import { describePhoto } from "./agents/vision.js";
 import { writePost, type Draft } from "./agents/writer.js";
 import { reviewPost } from "./agents/critic.js";
+import { motifsIn, overusedMotifs } from "./motifs.js";
 import type { Config } from "./config.js";
 
 export interface Result {
@@ -37,6 +38,7 @@ export async function generatePost(cfg: Config, persona: string, forceType?: "te
   const genre = finalType === "photo" ? pickWeighted(cfg.genres) : undefined;
   const topic = finalType === "text" ? pick(cfg.topics) : undefined;
   const photoDescription = useCfgPhoto ? await describePhoto(cfg, photo!) : undefined;
+  const avoid = overusedMotifs(recent);
 
   let draft: Draft | undefined;
   let feedback: string[] | undefined;
@@ -47,7 +49,7 @@ export async function generatePost(cfg: Config, persona: string, forceType?: "te
 
   for (let attempt = 0; attempt <= cfg.max_revisions; attempt++) {
     draft = await writePost(cfg, {
-      persona, recent, genre: genre?.name, photoDescription, topic, feedback, previous: draft?.text,
+      persona, recent, genre: genre?.name, photoDescription, topic, feedback, previous: draft?.text, avoid,
     });
     revisions = attempt;
     const review = await reviewPost(cfg, { persona, text: draft.text, recent, photoDescription });
@@ -61,6 +63,12 @@ export async function generatePost(cfg: Config, persona: string, forceType?: "te
         verdict = "revise";
         score = Math.min(score, cfg.critic_min_score - 1);
       }
+    }
+    const repeated = motifsIn(draft.text, avoid);
+    if (repeated.length) {
+      issues.push(`Повтор надоевших образов: ${repeated.join("; ")}. Убери их, возьми свежую деталь из фото.`);
+      verdict = "revise";
+      score = Math.min(score, cfg.critic_min_score - 1);
     }
     if (draft.text.length < cfg.min_post_chars) {
       issues.push(`Слишком коротко: ${draft.text.length} < ${cfg.min_post_chars}. Развей историю: завязка, развитие, поворот.`);

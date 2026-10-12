@@ -22,6 +22,7 @@ export interface WriteInput {
   topic?: string;          // для текстовых постов
   feedback?: string[];     // замечания критика при переписывании
   previous?: string;
+  avoid?: string[];        // образы, которые в последних постах уже встречались слишком часто
 }
 
 export async function writePost(cfg: Config, i: WriteInput): Promise<Draft> {
@@ -51,6 +52,9 @@ export async function writePost(cfg: Config, i: WriteInput): Promise<Draft> {
       "Недавние посты (не повторяй сюжеты, приёмы и начала; абзацы в памяти показаны знаком «/», а ты в ответе используй поле paragraphs):",
       ...i.recent.map((t) => `- ${t.replace(/\n+/g, " / ").slice(0, 160)}`),
     );
+  }
+  if (i.avoid?.length) {
+    parts.push(`В этом посте НЕ используй (они уже надоели в последних постах): ${i.avoid.join("; ")}. Придумай свежую деталь из самого фото, а не из списка привычек персоны.`);
   }
   if (i.feedback?.length) {
     parts.push(`Предыдущая версия:\n${i.previous}`, "Замечания, которые нужно учесть:", ...i.feedback.map((f) => `- ${f}`));
