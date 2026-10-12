@@ -15,7 +15,7 @@ memory_size: 30            # сколько прошлых постов подм
 models:
   vision: gpt-4o-mini
   writer: gpt-4.1-mini        # ответы на комментарии
-  story: gpt-4.1-mini         # замысел и текст постов (gpt-4.1 заметно острее, но примерно в 6 раз дороже)
+  story: gpt-4.1              # замысел и текст постов (gpt-4.1 заметно острее, но примерно в 6 раз дороже)
   critic: gpt-4.1-mini
   classifier: gpt-4.1-mini
 
