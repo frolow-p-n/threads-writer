@@ -8,15 +8,15 @@ jitter_minutes: 25
 photo_post_ratio: 1.0      # доля постов с фото (1.0 = всегда фото + история)
 min_post_chars: 300        # истории должны быть полноценными
 max_post_chars: 500        # лимит Threads
-critic_min_score: 7
+critic_min_score: 6        # Luna-критик строже gpt-4.1-mini, порог снижен соответственно
 max_revisions: 3
 memory_size: 30            # сколько прошлых постов подмешивать в промпт
 
 models:
   vision: gpt-6-luna           # (было gpt-4o-mini, отключается 14.01.2027)
   writer: gpt-6-luna          # ответы на комментарии (было gpt-4.1-mini)
-  story: gpt-4.1              # замысел и текст постов (gpt-4.1 заметно острее, но примерно в 6 раз дороже)
-  critic: gpt-4.1-mini
+  story: gpt-6-luna            # (было gpt-4.1, отключается 14.01.2027; дешевле в ~20 раз)
+  critic: gpt-6-luna          # (было gpt-4.1-mini; строже, ловит нестыковки времени и слабые концовки)
   classifier: gpt-6-luna      # (было gpt-4.1-mini)
 
 # Ответы на комментарии

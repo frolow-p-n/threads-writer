@@ -43,7 +43,7 @@ export async function askJson<T>(opts: {
       break;
     } catch (e) {
       const msg = (e as Error).message;
-      if (temperature !== undefined && /temperature/i.test(msg)) temperature = undefined; // модель принимает только значение по умолчанию
+      if (temperature !== undefined && temperature !== 1 && /temperature/i.test(msg)) temperature = 1; // эта модель принимает только 1: ставим его явно
       else if (isLength(e) && attempt < 3) budget *= 2; // не хватило: повторяем с удвоенным лимитом
       else throw new Error(`[${opts.schemaName} / ${opts.model}] ${msg}`);
     }

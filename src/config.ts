@@ -48,7 +48,12 @@ const Config = z.object({
 export type Config = z.infer<typeof Config>;
 
 export function loadConfig(path = "config/config.yaml"): Config {
-  return Config.parse(parse(readFileSync(path, "utf8")));
+  const cfg = Config.parse(parse(readFileSync(path, "utf8")));
+  // Переопределения для экспериментов (в облаке не задаются): MODEL_STORY, MODEL_CRITIC, CRITIC_MIN_SCORE.
+  if (process.env.MODEL_STORY) cfg.models.story = process.env.MODEL_STORY;
+  if (process.env.MODEL_CRITIC) cfg.models.critic = process.env.MODEL_CRITIC;
+  if (process.env.CRITIC_MIN_SCORE) cfg.critic_min_score = Number(process.env.CRITIC_MIN_SCORE);
+  return cfg;
 }
 
 export function loadPersona(path = "persona/persona.md"): string {
