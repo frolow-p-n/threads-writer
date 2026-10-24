@@ -25,7 +25,7 @@ export interface WriteInput {
   previous?: string;
   avoid?: string[];        // образы, которые в последних постах уже встречались слишком часто
   now?: string;            // «Сейчас в Нью-Йорке: …»
-  idea?: { hook: string; premise: string; opening: string; device: string; holiday?: string };
+  idea?: { hook: string; premise: string; causeEffect: string; opening: string; device: string; holiday?: string };
 }
 
 export async function writePost(cfg: Config, i: WriteInput): Promise<Draft> {
@@ -49,6 +49,7 @@ export async function writePost(cfg: Config, i: WriteInput): Promise<Draft> {
       `К посту прикреплено фото. Что на нём: ${i.photoDescription}`,
       `Напиши пост по готовому сюжетному замыслу. Фото лишь зацепка: используй только один элемент "${i.idea.hook}" как мостик в историю. Не описывай сцену на фото и не обязана оставаться в её месте: героиня может оказаться где угодно.`,
       `Замысел: ${i.idea.premise}`,
+      `Причина и следствие (держись этого точно, не добавляй новых необъяснённых связей): ${i.idea.causeEffect}`,
       `Идея первой фразы (можно улучшить): ${i.idea.opening}`,
       `Форма подачи: ${i.idea.device}. Тон: ${i.genre}.`,
       i.idea.holiday ? `Тема праздника: ${i.idea.holiday}. Вплети её естественно, назвав праздник или его атрибуты.` : "",

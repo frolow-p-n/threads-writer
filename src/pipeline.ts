@@ -4,7 +4,7 @@ import { tightenPost, writePost, type Draft } from "./agents/writer.js";
 import { reviewPost } from "./agents/critic.js";
 import { ideate, type Idea } from "./agents/ideator.js";
 import { chooseHoliday, whenText } from "./holidays.js";
-import { DEVICES, FANTASY_WORLDS, GROUNDED_SITUATIONS, TWISTS, pickAvoiding } from "./ideas.js";
+import { DEVICES, FANTASY_WORLDS, GROUNDED_SITUATIONS, SHAPES, TWISTS, pickAvoiding } from "./ideas.js";
 import { motifsIn, overusedMotifs } from "./motifs.js";
 import { nyNow, timeMismatches } from "./clock.js";
 import type { Config } from "./config.js";
@@ -26,6 +26,8 @@ export interface Result {
   mode?: "fantasy" | "grounded";
   premise?: string;
   hook?: string;
+  setting?: string;
+  shape?: string;
 }
 
 export interface GenerateOpts {
@@ -33,7 +35,15 @@ export interface GenerateOpts {
   dry?: boolean;
   holiday?: string; // принудительно тематический пост по id праздника (для проверки)
   mode?: "fantasy" | "grounded";
+  // То, что уже пробовали в текущей серии попыток на этот слот (без окна, абсолютный запрет).
+  excludeSettings?: string[];
+  excludeShapes?: string[];
 }
+
+// Окна «не повторять» для кубиков разнообразия (в постах). Декорация меняется терпимо редко,
+// структурный приём — короче: его повтор критик ловит жёстче, а вариантов меньше.
+const SETTING_WINDOW = 20;
+const SHAPE_WINDOW = 8;
 
 const pickWeighted = <T extends { weight: number }>(items: T[]): T => {
   let r = Math.random() * items.reduce((s, x) => s + x.weight, 0);
@@ -66,21 +76,27 @@ export async function generatePost(cfg: Config, persona: string, opts: GenerateO
   let idea: Idea | undefined;
   let device = "";
   let setting = "";
+  let shape = "";
   const mode = opts.mode ?? (Math.random() < cfg.fantasy_ratio ? "fantasy" : "grounded");
   if (finalType === "photo") {
-    const topics = await recentTopics(24);
-    setting = pickAvoiding(mode === "fantasy" ? FANTASY_WORLDS : GROUNDED_SITUATIONS, topics);
+    const topics = await recentTopics(Math.max(SETTING_WINDOW, SHAPE_WINDOW));
+    // Структурный приём (турнир/детектив/побег...) закодирован в topic как "[...] setting :: shape | premise".
+    const recentShapes = topics.map((t) => t.match(/:: ([^|]+) \|/)?.[1]?.trim()).filter((x): x is string => !!x);
+    setting = pickAvoiding(mode === "fantasy" ? FANTASY_WORLDS : GROUNDED_SITUATIONS, topics, SETTING_WINDOW, opts.excludeSettings);
+    shape = pickAvoiding(SHAPES, recentShapes, SHAPE_WINDOW, opts.excludeShapes);
     device = pick(DEVICES);
     idea = await ideate(cfg, {
       persona,
       photoDescription: photoDescription!,
       setting,
+      shape,
       twist: pick(TWISTS),
       device,
       mode,
       tone: genre!.name,
       holiday: holiday ? { name: holiday.def.name, theme: holiday.def.theme, when: whenText(holiday) } : undefined,
       recentTopics: topics,
+      recentShapes,
       now: now.text,
     });
   }
@@ -104,7 +120,7 @@ export async function generatePost(cfg: Config, persona: string, opts: GenerateO
       previous: draft?.text,
       avoid,
       now: now.text,
-      idea: idea && { hook: idea.hook, premise: idea.premise, opening: idea.opening, device, holiday: holidayNote },
+      idea: idea && { hook: idea.hook, premise: idea.premise, causeEffect: idea.cause_effect, opening: idea.opening, device, holiday: holidayNote },
     });
     revisions = attempt;
     // Слишком длинно: сжимаем отдельным шагом (до 3 раз), а не просим писателя переписать с нуля.
@@ -166,9 +182,9 @@ export async function generatePost(cfg: Config, persona: string, opts: GenerateO
 
   const ok = verdict === "publish" && score >= cfg.critic_min_score;
   const text = draft!.text;
-  // topic хранит «мир | замысел» (с меткой праздника): по нему подбираются непохожие сюжеты.
+  // topic хранит «мир :: приём | замысел» (с меткой праздника): по нему подбираются непохожие сюжеты.
   const topicStored = idea
-    ? `${holiday ? `[${holiday.def.id}] ` : ""}${setting} | ${idea.premise}`.slice(0, 400)
+    ? `${holiday ? `[${holiday.def.id}] ` : ""}${setting} :: ${shape} | ${idea.premise}`.slice(0, 400)
     : draft!.topic;
   const postId = await insertPost({
     status: ok ? (dry ? "draft" : "approved") : "rejected",
@@ -200,5 +216,7 @@ export async function generatePost(cfg: Config, persona: string, opts: GenerateO
     mode: finalType === "photo" ? mode : undefined,
     premise: idea?.premise,
     hook: idea?.hook,
+    setting: idea ? setting : undefined,
+    shape: idea ? shape : undefined,
   };
 }

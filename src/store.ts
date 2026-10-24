@@ -21,7 +21,10 @@ export interface PostRow {
   id: number; threads_id: string | null; status: string; type: string; text: string;
   genre: string | null; photo_id: number | null; critic_score: number | null; published_at: string | null;
 }
-export interface SlotRow { id: number; day: string; slot_at: string; post_id: number | null; done_at: string | null; skipped: boolean }
+export interface SlotRow {
+  id: number; day: string; slot_at: string; post_id: number | null; done_at: string | null; skipped: boolean;
+  attempts: number; best_post_id: number | null; best_score: number | null;
+}
 
 // ---- photos ----
 export async function addPhoto(p: { path: string; public_url?: string; description?: string }): Promise<number> {
@@ -71,8 +74,13 @@ export const slotsForDay = (day: string) =>
   sb<SlotRow[]>("GET", `tw_schedule?select=*&day=eq.${day}&order=slot_at.asc`);
 export const addSlots = (day: string, times: Date[]) =>
   sb("POST", "tw_schedule?on_conflict=day,slot_at", times.map((t) => ({ day, slot_at: t.toISOString() })), "resolution=ignore-duplicates");
-export const updateSlot = (id: number, patch: Partial<Pick<SlotRow, "post_id" | "done_at" | "skipped">>) =>
-  sb("PATCH", `tw_schedule?id=eq.${id}`, patch);
+export const updateSlot = (
+  id: number,
+  patch: Partial<Pick<SlotRow, "post_id" | "done_at" | "skipped" | "attempts" | "best_post_id" | "best_score">>,
+) => sb("PATCH", `tw_schedule?id=eq.${id}`, patch);
+
+/** Переводит забракованный пост в approved — запасной вариант, когда лимит попыток на слот исчерпан. */
+export const promoteToApproved = (id: number) => sb("PATCH", `tw_posts?id=eq.${id}`, { status: "approved" });
 
 // ---- comments / replies ----
 export const publishedPostsSince = (days: number) =>

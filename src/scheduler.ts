@@ -1,5 +1,5 @@
 import type { Config } from "./config.js";
-import { addSlots, getState, setState, slotsForDay, updateSlot } from "./store.js";
+import { addSlots, getState, promoteToApproved, setState, slotsForDay, updateSlot } from "./store.js";
 import { getToken } from "./publisher.js";
 import { getMe } from "./threads.js";
 import { generatePost } from "./pipeline.js";
@@ -7,6 +7,7 @@ import { publishApproved } from "./publisher.js";
 import { notify } from "./notify.js";
 
 const GRACE_MS = 6 * 3600_000; // слот старше 6 часов пропускаем, а не публикуем «с опозданием»
+const MAX_ATTEMPTS = 12; // стоп-кран: столько полных генераций на слот максимум, дальше публикуем лучший черновик
 
 /** Дата YYYY-MM-DD в заданном часовом поясе. */
 export const dayIn = (tz: string, d = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(d);
@@ -73,19 +74,40 @@ export async function tick(cfg: Config, persona: string, opts: { dry?: boolean }
     let postId: number | undefined = s.post_id ?? undefined;
     let lastIssues: string[] = [];
     let lastScore = 0;
+    let bestPostId = s.best_post_id ?? undefined;
+    let bestScore = s.best_score ?? -1;
+    let attemptsThisTick = 0;
+    const triedSettings: string[] = [];
+    const triedShapes: string[] = [];
     for (let attempt = 1; attempt <= 3 && !postId; attempt++) {
-      const r = await generatePost(cfg, persona, { forceType: "photo" });
+      const r = await generatePost(cfg, persona, { forceType: "photo", excludeSettings: triedSettings, excludeShapes: triedShapes });
+      attemptsThisTick++;
       console.log(`Попытка ${attempt}: ${r.status}, score ${r.score}`);
       lastIssues = r.issues; lastScore = r.score;
+      if (r.setting) triedSettings.push(r.setting);
+      if (r.shape) triedShapes.push(r.shape);
+      if (r.score > bestScore) { bestScore = r.score; bestPostId = r.postId; }
       if (r.status === "approved") {
         postId = r.postId;
         await updateSlot(s.id, { post_id: postId });
       }
     }
-    if (!postId) { console.warn("Критик не пропустил ни одну из 3 попыток; слот остаётся на следующий тик");
+    const totalAttempts = s.attempts + attemptsThisTick;
+    await updateSlot(s.id, { attempts: totalAttempts, best_post_id: bestPostId ?? null, best_score: bestScore });
+
+    if (!postId && totalAttempts >= MAX_ATTEMPTS && bestPostId) {
+      console.warn(`Лимит попыток (${MAX_ATTEMPTS}) исчерпан, публикуем лучший черновик (score ${bestScore})`);
+      await promoteToApproved(bestPostId);
+      postId = bestPostId;
+      await updateSlot(s.id, { post_id: postId });
+      await notify(`⚠️ Критик так и не одобрил пост за ${totalAttempts} попыток. Публикую лучший черновик (оценка ${bestScore}) без одобрения критика.`);
+    }
+    if (!postId) {
+      console.warn(`Критик не пропустил ни одну из попыток (всего ${totalAttempts}/${MAX_ATTEMPTS}); слот остаётся на следующий тик`);
       const why = lastIssues.slice(0, 3).map((x) => "- " + x).join("\n");
-      await notify(`⚠️ Критик забраковал 3 попытки (последняя оценка ${lastScore}). Слот ${s.slot_at} повторится на следующем запуске.\n${why}`);
-      continue; }
+      await notify(`⚠️ Критик забраковал попытки (${totalAttempts}/${MAX_ATTEMPTS}, последняя оценка ${lastScore}). Слот ${s.slot_at} повторится на следующем запуске.\n${why}`);
+      continue;
+    }
     let link: string;
     try {
       link = await publishApproved(postId);
