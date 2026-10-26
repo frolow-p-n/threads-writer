@@ -83,10 +83,17 @@ OpenAI: около $0.01 за пост (3-4 вызова), около $0.5 в м
 Ошибка `API access blocked (code 200)` у Threads уже случалась 2026-10-11 после проверки аккаунта при входе в Meta и прошла сама через несколько часов. Нужно: проверить Required actions и Alert Inbox в консоли разработчика, подтвердить проверку аккаунта, подождать; на время сбоя `pause --on 1`.
 
 ## Надёжный запуск: Supabase cron
-Встроенный cron GitHub срабатывал раз в несколько часов, поэтому добавлен триггер в Supabase (`supabase/migrations/003_cron.sql`): `pg_cron` каждые 15 минут через `pg_net` вызывает workflow_dispatch в GitHub. Токен GitHub (fine-grained, только репозиторий threads-writer, право Actions: Read and write, срок 1 год) лежит в Supabase Vault под именем `github_dispatch_token`. Параллельные запуски исключены (`concurrency` в workflow), слоты идемпотентны.
+Встроенный cron GitHub срабатывал раз в несколько часов, поэтому добавлен триггер в Supabase (`supabase/migrations/003_cron.sql`): `pg_cron` через `pg_net` вызывает workflow_dispatch в GitHub. Токен GitHub (fine-grained, только репозиторий threads-writer, право Actions: Read and write, срок 1 год) лежит в Supabase Vault под именем `github_dispatch_token`. Параллельные запуски исключены (`concurrency` в workflow), слоты идемпотентны.
 - Проверить: `select status_code, created from net._http_response order by created desc limit 5;` (204 = запуск принят) и `select * from cron.job_run_details order by start_time desc limit 5;`
 - Остановить: `select cron.unschedule('tw-dispatch');`
 - Когда токен истечёт (через год): создать новый и обновить секрет: `select vault.update_secret((select id from vault.secrets where name='github_dispatch_token'), 'НОВЫЙ_ТОКЕН');`
+
+**Частота и лимит минут GitHub (2026-10-26).** GitHub Actions на приватном репозитории даёт 2000 бесплатных минут в месяц и округляет каждый запуск вверх до целой минуты, даже если он ничего не сделал. При тике каждые 15 минут круглые сутки это ~1500 минут в месяц только на холостые проверки — почти весь лимит. Письмо GitHub «использовано 90% минут» пришло именно из-за этого, не из-за стоимости OpenAI.
+Исправлено в `supabase/migrations/005_cron_sleep_hours.sql`:
+- тик теперь раз в **30 минут** вместо 15 (примерно вдвое меньше запусков);
+- в часы сна героини, **01:00–08:00 по Нью-Йорку**, GitHub вообще не дёргается: проверка идёт через `EXTRACT(HOUR FROM now() AT TIME ZONE 'America/New_York')` прямо в SQL, поэтому переход на летнее/зимнее время не ломает расписание (в отличие от жёстко заданных часов UTC в cron-выражении).
+- Проверить, что ночью запросов нет: `select status_code, created from net._http_response order by created desc limit 20;` — не должно быть записей между 01:00 и 08:00 по Нью-Йорку.
+- Собственное расписание GitHub (`.github/workflows/tick.yml`, `cron: "*/30 * * * *"`) оставлено как редко срабатывающий резерв, его трогать не нужно.
 
 ## Формат поста (гарантии в коде)
 Писатель возвращает текст полем `paragraphs` (2-4 абзаца), код склеивает их через пустую строку: так абзацы не «слипаются» (раньше при длинной истории постов в памяти модель начала писать одним куском). Код же проверяет длину (`min_post_chars`..`max_post_chars`, 300-500) и число эмодзи (минимум 4 в фото-посте), а тире вырезает сам. Критик-ИИ длину не оценивает (он считает неточно). Если проверка не пройдена, пост уходит на переписывание (до `max_revisions` = 3 раз). Прошлые посты в памяти показываются одной строкой со знаком «/» между абзацами.
