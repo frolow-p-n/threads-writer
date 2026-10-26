@@ -1,8 +1,9 @@
 name: tick
 
 on:
-  schedule:
-    - cron: "*/30 * * * *"   # каждые 30 минут (GitHub может задерживать на несколько минут)
+  # Собственное расписание GitHub убрано: оно не знает про часы сна и срабатывало бы ночью
+  # независимо от Supabase. Единственный триггер теперь — Supabase pg_cron (см.
+  # supabase/migrations/005_cron_sleep_hours.sql), который дёргает workflow_dispatch сам.
   workflow_dispatch:
     inputs:
       dry:
