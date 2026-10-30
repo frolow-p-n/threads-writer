@@ -72,6 +72,9 @@ export const setState = (k: string, value: string) =>
 // ---- schedule ----
 export const slotsForDay = (day: string) =>
   sb<SlotRow[]>("GET", `tw_schedule?select=*&day=eq.${day}&order=slot_at.asc`);
+/** Все ещё не закрытые слоты, за любой день — чтобы просроченный слот прошлых суток не выпадал из вида. */
+export const pendingSlots = () =>
+  sb<SlotRow[]>("GET", `tw_schedule?select=*&done_at=is.null&skipped=is.false&order=slot_at.asc`);
 export const addSlots = (day: string, times: Date[]) =>
   sb("POST", "tw_schedule?on_conflict=day,slot_at", times.map((t) => ({ day, slot_at: t.toISOString() })), "resolution=ignore-duplicates");
 export const updateSlot = (

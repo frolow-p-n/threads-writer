@@ -1,5 +1,5 @@
 import type { Config } from "./config.js";
-import { addSlots, getState, promoteToApproved, setState, slotsForDay, updateSlot } from "./store.js";
+import { addSlots, getState, pendingSlots, promoteToApproved, setState, slotsForDay, updateSlot } from "./store.js";
 import { getToken } from "./publisher.js";
 import { getMe } from "./threads.js";
 import { generatePost } from "./pipeline.js";
@@ -46,12 +46,19 @@ async function alertThrottled(key: string, text: string, hours = 6) {
 export async function tick(cfg: Config, persona: string, opts: { dry?: boolean } = {}) {
   if ((await getState("paused")) === "1") return console.log("Агент на паузе (tw_state.paused=1)");
   const day = dayIn(cfg.timezone);
-  let slots = await slotsForDay(day);
-  if (!slots.length) {
+  let todaySlots = await slotsForDay(day);
+  if (!todaySlots.length) {
     await addSlots(day, planDay(cfg, day));
-    slots = await slotsForDay(day);
-    console.log(`Слоты на ${day}: ` + slots.map((s) => s.slot_at).join(", "));
+    todaySlots = await slotsForDay(day);
+    console.log(`Слоты на ${day}: ` + todaySlots.map((s) => s.slot_at).join(", "));
   }
+  // Незавершённые слоты прошлых дней тоже разбираем: иначе просроченный слот, переживший смену
+  // календарного дня, навсегда выпадает из вида (slotsForDay смотрит только на сегодня).
+  const pending = await pendingSlots();
+  const seen = new Set(todaySlots.map((s) => s.id));
+  const slots = [...todaySlots, ...pending.filter((s) => !seen.has(s.id))].sort(
+    (a, b) => new Date(a.slot_at).getTime() - new Date(b.slot_at).getTime(),
+  );
   const now = Date.now();
   let acted = 0;
   for (const s of slots) {
