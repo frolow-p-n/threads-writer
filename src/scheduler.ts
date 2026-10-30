@@ -6,7 +6,7 @@ import { generatePost } from "./pipeline.js";
 import { publishApproved } from "./publisher.js";
 import { notify } from "./notify.js";
 
-const GRACE_MS = 6 * 3600_000; // слот старше 6 часов пропускаем, а не публикуем «с опозданием»
+const GRACE_MS = 14 * 3600_000; // слот старше 14 часов пропускаем (с запасом переживает 7ч паузы на сон + время на попытки)
 const MAX_ATTEMPTS = 12; // стоп-кран: столько полных генераций на слот максимум, дальше публикуем лучший черновик
 
 /** Дата YYYY-MM-DD в заданном часовом поясе. */
@@ -58,7 +58,14 @@ export async function tick(cfg: Config, persona: string, opts: { dry?: boolean }
     if (s.done_at || s.skipped) continue;
     const at = new Date(s.slot_at).getTime();
     if (at > now) continue;
-    if (now - at > GRACE_MS) { await updateSlot(s.id, { skipped: true }); console.log(`Слот ${s.slot_at} пропущен (опоздание > 6 ч)`); await notify(`⚠️ Слот ${s.slot_at} пропущен (опоздание больше 6 часов)`); continue; }
+    const expired = now - at > GRACE_MS;
+    if (expired && !s.best_post_id) {
+      // Ни одной попытки не было вообще (например, слот появился прямо перед долгой паузой) — публиковать нечего.
+      await updateSlot(s.id, { skipped: true });
+      console.log(`Слот ${s.slot_at} пропущен (опоздание > 14 ч, черновиков нет)`);
+      await notify(`⚠️ Слот ${s.slot_at} пропущен (опоздание больше 14 часов, ни одного черновика не было).`);
+      continue;
+    }
     if (opts.dry) { console.log(`[dry] подошёл слот ${s.slot_at}: сгенерировал бы и опубликовал пост`); acted++; continue; }
 
     // Быстрая проверка API до генерации: если Threads недоступен, ничего не тратим.
@@ -79,7 +86,8 @@ export async function tick(cfg: Config, persona: string, opts: { dry?: boolean }
     let attemptsThisTick = 0;
     const triedSettings: string[] = [];
     const triedShapes: string[] = [];
-    for (let attempt = 1; attempt <= 3 && !postId; attempt++) {
+    // Если время слота уже истекло (14ч), новых попыток не делаем — только публикуем то, что уже есть.
+    for (let attempt = 1; attempt <= 3 && !postId && !expired; attempt++) {
       const r = await generatePost(cfg, persona, { forceType: "photo", excludeSettings: triedSettings, excludeShapes: triedShapes });
       attemptsThisTick++;
       console.log(`Попытка ${attempt}: ${r.status}, score ${r.score}`);
@@ -95,12 +103,13 @@ export async function tick(cfg: Config, persona: string, opts: { dry?: boolean }
     const totalAttempts = s.attempts + attemptsThisTick;
     await updateSlot(s.id, { attempts: totalAttempts, best_post_id: bestPostId ?? null, best_score: bestScore });
 
-    if (!postId && totalAttempts >= MAX_ATTEMPTS && bestPostId) {
-      console.warn(`Лимит попыток (${MAX_ATTEMPTS}) исчерпан, публикуем лучший черновик (score ${bestScore})`);
+    if (!postId && (totalAttempts >= MAX_ATTEMPTS || expired) && bestPostId) {
+      const why = expired ? `время слота истекло (>14ч)` : `лимит попыток (${MAX_ATTEMPTS}) исчерпан`;
+      console.warn(`${why}, публикуем лучший черновик (score ${bestScore})`);
       await promoteToApproved(bestPostId);
       postId = bestPostId;
       await updateSlot(s.id, { post_id: postId });
-      await notify(`⚠️ Критик так и не одобрил пост за ${totalAttempts} попыток. Публикую лучший черновик (оценка ${bestScore}) без одобрения критика.`);
+      await notify(`⚠️ Критик так и не одобрил пост (${why}). Публикую лучший черновик (оценка ${bestScore}) без одобрения критика.`);
     }
     if (!postId) {
       console.warn(`Критик не пропустил ни одну из попыток (всего ${totalAttempts}/${MAX_ATTEMPTS}); слот остаётся на следующий тик`);
