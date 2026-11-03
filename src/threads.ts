@@ -43,7 +43,9 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function publishPost(opts: { userId: string; token: string; text: string; imageUrl?: string; replyToId?: string }) {
   const { userId, token, text, imageUrl, replyToId } = opts;
   const container = await api<{ id: string }>(`/v1.0/${userId}/threads`, {
-    media_type: imageUrl ? "IMAGE" : "TEXT", text, ...(imageUrl ? { image_url: imageUrl } : {}), ...(replyToId ? { reply_to_id: replyToId } : {}), access_token: token,
+    media_type: imageUrl ? "IMAGE" : "TEXT", text,
+    is_made_with_ai: "true",
+    ...(imageUrl ? { image_url: imageUrl } : {}), ...(replyToId ? { reply_to_id: replyToId } : {}), access_token: token,
   }, "POST");
   // Meta рекомендует подождать перед публикацией; проверяем статус контейнера.
   for (let i = 0; i < 12; i++) {
