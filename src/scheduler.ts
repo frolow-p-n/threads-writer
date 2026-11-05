@@ -95,7 +95,17 @@ export async function tick(cfg: Config, persona: string, opts: { dry?: boolean }
     const triedShapes: string[] = [];
     // Если время слота уже истекло (14ч), новых попыток не делаем — только публикуем то, что уже есть.
     for (let attempt = 1; attempt <= 3 && !postId && !expired; attempt++) {
-      const r = await generatePost(cfg, persona, { forceType: "photo", excludeSettings: triedSettings, excludeShapes: triedShapes });
+      let r;
+      try {
+        r = await generatePost(cfg, persona, { forceType: "photo", excludeSettings: triedSettings, excludeShapes: triedShapes });
+      } catch (e) {
+        // Транзиентный сбой (например таймаут загрузки фото для vision) не должен ронять весь тик —
+        // переходим к следующему слоту, этот слот и ответы на комментарии разберём на следующем прогоне.
+        console.warn(`Попытка ${attempt}: ошибка генерации, пропускаю`, (e as Error).message);
+        lastIssues = [(e as Error).message];
+        await alertThrottled("generate", `⚠️ Сбой при генерации поста для слота ${s.slot_at}: ${(e as Error).message}\nПовторю на следующем прогоне.`);
+        break;
+      }
       attemptsThisTick++;
       console.log(`Попытка ${attempt}: ${r.status}, score ${r.score}`);
       lastIssues = r.issues; lastScore = r.score;
